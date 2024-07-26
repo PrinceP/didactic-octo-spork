@@ -14,6 +14,9 @@ import boto3
 import subprocess
 import tempfile
 
+from utils.status_codes import StatusCodes
+from utils.version import API_VERSION, SERVICE_NAME
+
 # Load environment variables
 load_dotenv()
 
@@ -101,25 +104,25 @@ def check_input_request(request, user_id, user_role, request_id, method, payload
     reason = ""
     status = ""
     if user_role is None or not user_role.strip():
-        status = "INVALID_REQUEST"
+        status = StatusCodes.INVALID_REQUEST
         reason = "userRole is invalid"
 
     if user_id is None or not user_id.strip():
-        status = "INVALID_REQUEST"
+        status = StatusCodes.INVALID_REQUEST
         reason = "userToken is invalid"
 
     if request_id is None or not request_id.strip():
-        status = "INVALID_REQUEST"
+        status = StatusCodes.INVALID_REQUEST
         reason = "requestId is invalid"
     if method is None or not method.strip():
-        status = "INVALID_REQUEST"
+        status = StatusCodes.INVALID_REQUEST
         reason = "method is invalid"
     elif method not in SUPPORTED_METHOD:
         status = "UNSUPPORTED"
         reason = f"unsupported method {method}"
 
     if payload is None or payload == "" or payload.data_s3 == "":
-        status = "INVALID_REQUEST"
+        status = StatusCodes.INVALID_REQUEST
         reason = "payload is invalid"
 
     if status != "":
@@ -149,7 +152,7 @@ async def call_endpoint(request: Request, user_id: str = Header(None), user_role
     trace_id = str(uuid.uuid4())
 
     response = {"taskId": task_id}
-    error_code = {"status": "PENDING", "reason": "Pending"}
+    error_code = {"status": StatusCodes.PENDING, "reason": "Pending"}
     respose_data = {
         "requestId": request_id,
         "traceId": trace_id,
@@ -174,8 +177,8 @@ def process_task(task_id, request_id, user_id, payload):
 
 def send_callback(user_id, task_id, request_id, processing_duration, data, s3_path):
     callback_message = {
-        "apiVersion": "1.0.0",
-        "service": "MyService",
+        "apiVersion": API_VERSION,
+        "service": SERVICE_NAME,
         "datetime": datetime.datetime.now().isoformat(),
         "processDuration": processing_duration,
         "taskId": task_id,
@@ -207,7 +210,7 @@ async def result(request: Request, user_id: str = Header(None), user_role: str =
     result_request_id = str(uuid.uuid4())
 
     if user_id is None or not user_id.strip():
-        error_code = {"status": "ERROR", "reason": "No User ID found in headers"}
+        error_code = {"status": StatusCodes.ERROR, "reason": "No User ID found in headers"}
         response_data = {
             "requestId": result_request_id,
             "traceId": trace_id,
@@ -219,7 +222,7 @@ async def result(request: Request, user_id: str = Header(None), user_role: str =
         raise HTTPException(status_code=400, detail=response_data)
 
     if marketplace_token is None or not marketplace_token.strip():
-        error_code = {"status": "ERROR", "reason": "No marketplace token found in headers"}
+        error_code = {"status": StatusCodes.ERROR, "reason": "No marketplace token found in headers"}
         response_data = {
             "requestId": result_request_id,
             "traceId": trace_id,
@@ -232,7 +235,7 @@ async def result(request: Request, user_id: str = Header(None), user_role: str =
 
     task_id = request_data.taskId
     if task_id is None or not task_id.strip():
-        error_code = {"status": "ERROR", "reason": "No task ID found in body"}
+        error_code = {"status": StatusCodes.ERROR, "reason": "No task ID found in body"}
         response_data = {
             "requestId": result_request_id,
             "traceId": trace_id,
@@ -244,7 +247,7 @@ async def result(request: Request, user_id: str = Header(None), user_role: str =
         raise HTTPException(status_code=400, detail=response_data)
 
     if task_id not in cache:
-        error_code = {"status": "ERROR", "reason": "Task ID not exists in db"}
+        error_code = {"status": StatusCodes.ERROR, "reason": "Task ID not exists in db"}
         response_data = {
             "requestId": result_request_id,
             "traceId": trace_id,
@@ -270,7 +273,7 @@ async def result(request: Request, user_id: str = Header(None), user_role: str =
             "data": data,
             "dataType": "HYBRID"
         },
-        "errorCode": {"status": "SUCCESS", "reason": "success"}
+        "errorCode": {"status": StatusCodes.SUCCESS, "reason": "success"}
     }
     return JSONResponse(content=response_data)
 
