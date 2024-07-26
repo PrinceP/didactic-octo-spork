@@ -17,6 +17,7 @@ import tempfile
 from utils.status_codes import StatusCodes
 from utils.version import API_VERSION, SERVICE_NAME
 
+import shutil 
 # Load environment variables
 load_dotenv()
 
@@ -53,12 +54,21 @@ def download_file_from_s3(s3_path, local_dir):
     s3.download_file(bucket_name, file_key, local_file_path)
     return local_file_path
 
+import logging
+
 def upload_file_to_s3(local_file_path, s3_path):
     s3 = boto3.client('s3')
     bucket_name = s3_path.split('/')[2]
     file_key = '/'.join(s3_path.split('/')[3:])
 
-    s3.upload_file(local_file_path, bucket_name, file_key)
+    try:
+        s3.upload_file(local_file_path, bucket_name, file_key)
+        logging.info(f"Successfully uploaded {local_file_path} to s3://{bucket_name}/{file_key}")
+        print(f"Successfully uploaded {local_file_path} to s3://{bucket_name}/{file_key}")
+    except Exception as e:
+        logging.error(f"Failed to upload {local_file_path} to s3://{bucket_name}/{file_key}: {str(e)}")
+        print(f"Failed to upload {local_file_path} to s3://{bucket_name}/{file_key}: {str(e)}")
+
 
 def process_audio_file(s3_path):
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -73,14 +83,19 @@ def process_audio_file(s3_path):
 
         main_command1 = f'/app/main -m /models/ggml-tiny.bin -f {wav_file_path} -owts -fp /my-app/Courier_New_Bold.ttf'
         subprocess.run(main_command1, shell=True, check=True)
-        main_command2 = f'source -f {wav_file_path}.wts'
-        subprocess.run(main_command2, shell=True, check=True)
+        main_command2 = f'source {wav_file_path}.wts'
+        subprocess.run(f'bash -c "{main_command2}"', shell=True, check=True)
 
         json_file_path = f'{wav_file_path}.json'
         with open(json_file_path, 'r') as json_file:
             data = json.load(json_file)
 
         video_file_path = f'{wav_file_path}.mp4'
+
+        # Move the video file to /my-app/
+        final_video_file_path = f'/my-app/{os.path.basename(video_file_path)}'
+        shutil.move(video_file_path, final_video_file_path)
+
         result = data.get('result')
         transcription = data.get('transcription')
         combined_json = {'result': result, 'transcription': transcription}
@@ -89,11 +104,10 @@ def process_audio_file(s3_path):
         os.remove(wav_file_path)
         os.remove(json_file_path)
 
-        return combined_json, video_file_path
+        return combined_json, final_video_file_path
 
 def hello_world(payload):
     start_time = time.time()
-    time.sleep(5)
     data_s3 = payload.data_s3
     text, video_file_path = process_audio_file(data_s3)
     end_time = time.time()
@@ -143,7 +157,7 @@ def check_input_request(request, user_id, user_role, request_id, method, payload
     return None
 
 @app.post("/call")
-async def call_endpoint(request: Request, user_id: str = Header(None), user_role: str = Header(None), request_id: str = Header(None), marketplace-token: str = Header(None), request_data: RequestData = None):
+async def call_endpoint(request: Request, user_id: str = Header(None), user_role: str = Header(None), request_id: str = Header(None), marketplace_token: str = Header(None), request_data: RequestData = None):
     ret = check_input_request(request, user_id, user_role, request_id, request_data.method, request_data.payload)
     if ret is not None:
         raise HTTPException(status_code=400, detail=ret)
@@ -168,8 +182,8 @@ async def call_endpoint(request: Request, user_id: str = Header(None), user_role
 
 def process_task(task_id, request_id, user_id, payload):
     data, video_file_path, processing_duration = hello_world(payload)
-    upload_file_to_s3(video_file_path, payload.data_s3.replace('.mp3', '_result.mp3'))
-
+    upload_file_to_s3(video_file_path, payload.data_s3.replace('.mp4', '_result.mp4'))
+    os.remove(video_file_path)
     with cache_lock:
         cache[task_id] = (data, video_file_path, processing_duration)
 
@@ -264,7 +278,7 @@ async def result(request: Request, user_id: str = Header(None), user_role: str =
         "s3Path": cache[task_id][1]
     }
     response_data = {
-        "requestId": request_id,
+        "requestId": result_request_id,
         "traceId": trace_id,
         "processingDuration": -1,
         "isResponseImmediate": True,
