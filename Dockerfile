@@ -17,4 +17,6 @@ RUN pip install -r requirements.txt
 
 ADD . /my-app
 
-CMD ["python","app.py"]
+RUN chmod +x /my-app/entrypoint.sh
+
+ENTRYPOINT ["/my-app/entrypoint.sh"]

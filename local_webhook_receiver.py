@@ -11,7 +11,7 @@ class WebhookReceiver(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b'OK')
 
-def run(server_class=HTTPServer, handler_class=WebhookReceiver, port=8000):
+def run(server_class=HTTPServer, handler_class=WebhookReceiver, port=8002):
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
     print(f'Starting httpd on port {port}...')

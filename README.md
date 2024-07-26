@@ -2,6 +2,8 @@
 
 ## Docker build
 
-- sudo docker build --tag=test . 
+```sh
+./scripts/build_docker.sh
+```
 
 ## Deployment
