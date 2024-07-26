@@ -1,0 +1,9 @@
+mysql-connector-python
+pydantic
+flask
+requests
+python-dotenv
+flask-mysqldb
+fastapi
+uvicorn
+boto3
