@@ -182,12 +182,12 @@ async def call_endpoint(request: Request, user_id: str = Header(None), user_role
 
 def process_task(task_id, request_id, user_id, payload):
     data, video_file_path, processing_duration = hello_world(payload)
-    upload_file_to_s3(video_file_path, payload.data_s3.replace('.mp4', '_result.mp4'))
+    upload_file_to_s3(video_file_path, payload.data_s3.replace('.mp3', '_result.mp4'))
     os.remove(video_file_path)
     with cache_lock:
-        cache[task_id] = (data, video_file_path, processing_duration)
+        cache[task_id] = (data, payload.data_s3.replace('.mp3','_result.mp4'), processing_duration)
 
-    send_callback(user_id, task_id, request_id, processing_duration, data, payload.data_s3.replace('.mp3', '_result.mp3'))
+    send_callback(user_id, task_id, request_id, processing_duration, data, payload.data_s3.replace('.mp3', '_result.mp4'))
 
 def send_callback(user_id, task_id, request_id, processing_duration, data, s3_path):
     callback_message = {
