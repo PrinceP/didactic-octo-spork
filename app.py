@@ -291,4 +291,48 @@ async def result(request: Request, user_id: str = Header(None), user_role: str =
     }
     return JSONResponse(content=response_data)
 
+@app.get("/stats")
+async def stats(user_id: str = Header(None), user_role: str = Header(None), marketplace_token: str = Header(None)):
+    trace_id = str(uuid.uuid4())
+    stats_request_id = str(uuid.uuid4())
+
+    if user_id is None or not user_id.strip():
+        error_code = {"status": StatusCodes.ERROR, "reason": "No User ID found in headers"}
+        response_data = {
+            "requestId": stats_request_id,
+            "traceId": trace_id,
+            "processingDuration": -1,
+            "isResponseImmediate": True,
+            "response": {},
+            "errorCode": error_code
+        }
+        raise HTTPException(status_code=400, detail=response_data)
+
+    if marketplace_token is None or not marketplace_token.strip():
+        error_code = {"status": StatusCodes.ERROR, "reason": "No marketplace token found in headers"}
+        response_data = {
+            "requestId": stats_request_id,
+            "traceId": trace_id,
+            "processingDuration": -1,
+            "isResponseImmediate": True,
+            "response": {},
+            "errorCode": error_code
+        }
+        raise HTTPException(status_code=400, detail=response_data)
+
+    response_data = {
+        "requestId": stats_request_id,
+        "traceId": trace_id,
+        "processingDuration": -1,
+        "isResponseImmediate": True,
+        "apiVersion": API_VERSION,
+        "service": SERVICE_NAME,
+        "datetime": datetime.datetime.now().isoformat(),
+        "response": {
+            "numRequestSuccess": len(cache),
+            "numRequestFailed": 2  # This should be dynamically calculated based on actual data
+        },
+        "errorCode": {"status": "WSP_000", "reason": "success"}
+    }
+    return JSONResponse(content=response_data)
 
